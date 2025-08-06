@@ -9,15 +9,15 @@ public class Sensor {
     private double x;
     private double y;
     private double maxRange;
-    private double bearingStdDev;
+    private double bearingStdDevDegrees;
     private double positionStdDev;
     
     
-    public Sensor(double x, double y, double maxRange, double bearingStdDev, double positionStdDev) {
+    public Sensor(double x, double y, double maxRange, double bearingStdDevDegrees, double positionStdDev) {
         this.x = x;
         this.y = y;
         this.maxRange = maxRange;
-        this.bearingStdDev = bearingStdDev;
+        this.bearingStdDevDegrees = bearingStdDevDegrees;
         this.positionStdDev = positionStdDev;
     }
     
@@ -36,7 +36,7 @@ public class Sensor {
         }
         
         double trueBearing = Math.atan2(trueY - y, trueX - x);
-        double noisyBearing = trueBearing + random.nextGaussian() * (bearingStdDev * Math.PI / 180);
+        double noisyBearing = trueBearing + random.nextGaussian() * (bearingStdDevDegrees * Math.PI / 180);
         double noisyX = trueX + random.nextGaussian() * positionStdDev;
         double noisyY = trueY + random.nextGaussian() * positionStdDev;
         return new double[]{wrapToPi(noisyBearing), noisyX, noisyY};
@@ -58,7 +58,7 @@ public class Sensor {
         // Calculate bearing likelihood (line of bearing)
         double predictedBearing = Math.atan2(particlePos[1] - y, particlePos[0] - x);
         double bearingDiff = wrapToPi(predictedBearing - measuredBearing);
-        double bearingVariance = Math.pow(bearingStdDev * Math.PI / 180, 2);
+        double bearingVariance = Math.pow(bearingStdDevDegrees * Math.PI / 180, 2);
         return Math.exp(-0.5 * (bearingDiff * bearingDiff) / bearingVariance) /
                 Math.sqrt(2 * Math.PI * bearingVariance);
     }

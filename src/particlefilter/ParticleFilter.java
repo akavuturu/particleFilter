@@ -25,8 +25,8 @@ public class ParticleFilter {
 
             // uniformly distributed initial velocities around speed range and full circle
             double speed = motionModel.getMinSpeed() + ((motionModel.getMaxSpeed() - motionModel.getMinSpeed()) * rand.nextDouble());
-            double course = 2 * Math.PI * rand.nextDouble();
-            particles.add(new Particle(x, y, 1.0 / numParticles, speed * Math.cos(course), speed * Math.sin(course)));
+            double courseRadians = 2 * Math.PI * rand.nextDouble();
+            particles.add(new Particle(x, y, 1.0 / numParticles, speed * Math.cos(courseRadians), speed * Math.sin(courseRadians)));
         }
     }
 
@@ -51,7 +51,7 @@ public class ParticleFilter {
     public void updateWeights(List<double[]> observations, List<Sensor> sensors) {
         // Measurement update with multiple observations
         for (Particle p : this.particles) {
-            double particleWeight = 0.0; //log space
+            double particleWeight = 1.0; //log space
 
             // Multiply likelihoods from all observations
             for (double[] obs : observations) {
@@ -60,11 +60,11 @@ public class ParticleFilter {
                     Sensor sensor = sensors.get(sensorId);
                     double likelihood = sensor.likelihood(obs, p);
 
-                    particleWeight += Math.log(likelihood + 1e-10);
+                    particleWeight *= likelihood;
                 }
             }
 
-            p.setWeight(Math.exp(particleWeight));
+            p.setWeight(particleWeight);
         }
 
         updateEstimate();

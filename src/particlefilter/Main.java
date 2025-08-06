@@ -34,7 +34,7 @@ public class Main {
     @SuppressWarnings("java:S106")
     public static void main(String[] args) {        
         double speed = 15; // target speed, m/s
-        double course = 45; // target course, degrees
+        double courseDegrees = 45; // target course, degrees
         double err = 0.0;
         int timeSteps = 200;
         double[] pred;
@@ -44,7 +44,7 @@ public class Main {
 
         ParticleFilter filter = new ParticleFilter(500, 0.0, 0.0, 300.0, new GaussianMotion2D(20, 12));
 
-        Simulator sim = new Simulator(0.0, 0.0, speed, course);
+        Simulator sim = new Simulator(0.0, 0.0, speed, courseDegrees);
 
         sim.addSensor(new Sensor(1500, 3000, 2500, 15, 100));
         sim.addSensor(new Sensor(0, 1500, 2500, 15, 100));
