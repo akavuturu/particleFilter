@@ -2,6 +2,7 @@ package src.particlefilter;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
@@ -65,8 +66,10 @@ public class Main {
                     List<Sensor> sensors = sim.getSensors();
                     
                     if (!observations.isEmpty()) {
+                        var obs = new ArrayList<double[]>();
+                        obs.add(observations.get(0));
                         filter.motionUpdate();
-                        filter.updateWeights(observations, sensors);
+                        filter.updateWeights(obs, sensors);
                         pred = filter.getEstimate();
                         exportParticleStates(csvWriter, filter, t, truePos[0], truePos[1], pred[0], pred[1]);
                         filter.resample();
