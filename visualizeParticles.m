@@ -1,7 +1,7 @@
 function visualizeParticles()
     %% Configuration
-    SENSOR_POSITIONS = [1500, 3000; 0, 1500]; % [x, y] coordinates of sensors
-    SENSOR_MAX_RANGE = [2500; 2500]; % Maximum sensor ranges for circle visualization
+    SENSOR_POSITIONS = [0, 1500; 1500, 3000]; % [x, y] coordinates of sensors
+    SENSOR_MAX_RANGE = [4000, 4000]; % Maximum sensor ranges for circle visualization
     STEP_SIZE = 10; % Time Step increment for viewer
     
     %% Load data
@@ -18,7 +18,7 @@ function visualizeParticles()
     numTimeSteps = length(timeSteps);
 
     % Initialize visualization
-    currentTimeIndex = 1;
+    currentTimeIndex = 0;
     figHandle = figure('Position', [0, 0, 1000, 600], ...
                       'Name', 'Interactive Particle Filter Visualization', ...
                       'KeyPressFcn', @keyPressCallback, ...

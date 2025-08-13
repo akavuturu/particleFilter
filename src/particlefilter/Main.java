@@ -2,7 +2,6 @@ package src.particlefilter;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
@@ -40,15 +39,15 @@ public class Main {
         int timeSteps = 200;
         double[] pred;
         int dT = 1; // simulation time step, sec
-        int observationStep = 10; // how often observations are recorded from sensors
+        int observationStep = 5; // how often observations are recorded from sensors
         String csvName = "particle_states.csv";
 
-        ParticleFilter filter = new ParticleFilter(500, 0.0, 0.0, 300.0, new GaussianMotion2D(20, 12));
+        ParticleFilter filter = new ParticleFilter(500, 0.0, 0.0, 300.0, new GaussianMotion2D(23, 12));
 
         Simulator sim = new Simulator(0.0, 0.0, speed, courseDegrees);
 
-        sim.addSensor(new Sensor(1500, 3000, 2500, 15, 100));
-        sim.addSensor(new Sensor(0, 1500, 2500, 15, 100));
+        sim.addSensor(new Sensor(1500, 3000, 4000, 8, 60));
+        sim.addSensor(new Sensor(0, 1500, 4000, 8, 60));
 
         try (FileWriter csvWriter = new FileWriter(csvName)) {
             // Write CSV header
@@ -66,10 +65,8 @@ public class Main {
                     List<Sensor> sensors = sim.getSensors();
                     
                     if (!observations.isEmpty()) {
-                        var obs = new ArrayList<double[]>();
-                        obs.add(observations.get(0));
                         filter.motionUpdate();
-                        filter.updateWeights(obs, sensors);
+                        filter.updateWeights(observations, sensors);
                         pred = filter.getEstimate();
                         exportParticleStates(csvWriter, filter, t, truePos[0], truePos[1], pred[0], pred[1]);
                         filter.resample();
