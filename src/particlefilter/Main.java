@@ -30,9 +30,39 @@ public class Main {
         csvWriter.flush();
     }
 
+    private static void exportSensorData(FileWriter csvWriter, List<Sensor> sensors, 
+                                       List<double[]> observations, int timeStep) throws IOException {
+        if (observations.isEmpty()) return;
+        
+        for (int i = 0; i < sensors.size() && i < observations.size(); i++) {
+            Sensor sensor = sensors.get(i);
+            double[] obs = observations.get(i);
+            
+            if (obs.length >= 3) {
+                csvWriter.append(String.format("%d,%d,%.6f,%.6f,%.6f,%.6f,%n",
+                        timeStep, // TimeStep
+                        i, // SensorID
+                        sensor.getX(), // Sensor X
+                        sensor.getY(), // Sensor Y
+                        obs[1], // Observed bearing (radians)
+                        sensor.getBearingStdDevRadians() // Bearing std dev
+                ));
+            }
+        }
+        csvWriter.flush();
+    }
+
     
     @SuppressWarnings("java:S106")
-    public static void main(String[] args) {        
+    public static void main(String[] args) {
+        // Check for debug argument
+        boolean debugMode = false;
+        for (String arg : args) {
+            if ("--debug".equals(arg) || "-d".equals(arg)) {
+                debugMode = true;
+            }
+        }
+        
         double speed = 15; // target speed, m/s
         double courseDegrees = 45; // target course, degrees
         double err = 0.0;
@@ -41,18 +71,30 @@ public class Main {
         int dT = 1; // simulation time step, sec
         int observationStep = 5; // how often observations are recorded from sensors
         String csvName = "particle_states.csv";
+        String sensorCsvName = "sensor_data.csv";
 
         ParticleFilter filter = new ParticleFilter(500, 0.0, 0.0, 300.0, new GaussianMotion2D(23, 12));
 
         Simulator sim = new Simulator(0.0, 0.0, speed, courseDegrees);
 
-        sim.addSensor(new Sensor(1500, 3000, 4000, 8, 60));
-        sim.addSensor(new Sensor(0, 1500, 4000, 8, 60));
+        Sensor sensor1 = new Sensor(1500, 3000, 4000, 8, 60);
+        Sensor sensor2 = new Sensor(0, 1500, 4000, 8, 60);
+        
+        // Set debug mode for sensors
+        sensor1.setDebugMode(debugMode);
+        sensor2.setDebugMode(debugMode);
+        
+        sim.addSensor(sensor1);
+        sim.addSensor(sensor2);
 
-        try (FileWriter csvWriter = new FileWriter(csvName)) {
-            // Write CSV header
+        try (FileWriter csvWriter = new FileWriter(csvName);
+             FileWriter sensorCsvWriter = new FileWriter(sensorCsvName)) {
+            
+            // Write CSV headers
             csvWriter.append("TimeStep,ParticleID,X,Y,Weight,TrueX,TrueY,EstimateX,EstimateY\n");
+            sensorCsvWriter.append("TimeStep,SensorID,SensorX,SensorY,ObservedBearing,BearingStdDev\n");
             csvWriter.flush();
+            sensorCsvWriter.flush();
 
             for (int t = 0; t < timeSteps; t += dT) {
                 // Step the simulation
@@ -69,6 +111,7 @@ public class Main {
                         filter.updateWeights(observations, sensors);
                         pred = filter.getEstimate();
                         exportParticleStates(csvWriter, filter, t, truePos[0], truePos[1], pred[0], pred[1]);
+                        exportSensorData(sensorCsvWriter, sensors, observations, t);
                         filter.resample();
                         
                         System.out.printf("Time %d [OBS] | True: (%.2f, %.2f) | %d observations | ",

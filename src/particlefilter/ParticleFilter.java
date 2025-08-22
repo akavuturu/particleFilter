@@ -51,20 +51,19 @@ public class ParticleFilter {
     public void updateWeights(List<double[]> observations, List<Sensor> sensors) {
         // Measurement update with multiple observations
         for (Particle p : this.particles) {
-            double particleWeight = 1.0; //log space
+            double particleWeight = 1.0;
+            double[] likelihoods = new double[observations.size()];
 
             // Multiply likelihoods from all observations
             for (double[] obs : observations) {
                 int sensorId = (int) obs[0];
-                if (sensorId < sensors.size()) {
-                    Sensor sensor = sensors.get(sensorId);
-                    double likelihood = sensor.likelihood(obs, p);
+                Sensor sensor = sensors.get(sensorId);
+                double likelihood = sensor.likelihood(obs, p);
+                likelihoods[sensorId] = likelihood;
 
-                    particleWeight *= likelihood;
-                }
+                particleWeight *= likelihood;
             }
-
-            p.setWeight(particleWeight);
+            p.setWeight(particleWeight);    
         }
 
         updateEstimate();

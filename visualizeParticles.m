@@ -4,14 +4,25 @@ function visualizeParticles()
     SENSOR_MAX_RANGE = [4000, 4000]; % Maximum sensor ranges for circle visualization
     STEP_SIZE = 10; % Time Step increment for viewer
     
-    %% Load data
+    %% Load particle data
     try
         opts = detectImportOptions('particle_states.csv', 'NumHeaderLines', 0, 'VariableNamingRule', 'preserve');
         data = readtable('particle_states.csv', opts);
-        fprintf('Data loaded successfully. Size: %d x %d\n', height(data), width(data));
+        fprintf('Particle data loaded successfully. Size: %d x %d\n', height(data), width(data));
     catch ME
-        fprintf('Error loading CSV: %s\n', ME.message);
+        fprintf('Error loading particle CSV: %s\n', ME.message);
         return;
+    end
+    
+    %% Load sensor data
+    sensorData = [];
+    try
+        sensorOpts = detectImportOptions('sensor_data.csv', 'NumHeaderLines', 0, 'VariableNamingRule', 'preserve');
+        sensorData = readtable('sensor_data.csv', sensorOpts);
+        fprintf('Sensor data loaded successfully. Size: %d x %d\n', height(sensorData), width(sensorData));
+    catch ME
+        fprintf('Warning: Could not load sensor_data.csv: %s\n', ME.message);
+        fprintf('Bearing cones will not be displayed.\n');
     end
     
     timeSteps = unique(data.TimeStep);
@@ -20,9 +31,15 @@ function visualizeParticles()
     % Initialize visualization
     currentTimeIndex = 0;
     figHandle = figure('Position', [0, 0, 1000, 600], ...
-                      'Name', 'Interactive Particle Filter Visualization', ...
+                      'Name', 'Interactive Particle Filter Visualization with Bearing Cones', ...
                       'KeyPressFcn', @keyPressCallback, ...
                       'CloseRequestFcn', @closeCallback);
+
+    % Calculate global weight statistics for consistent color scaling
+    globalMinWeight = min(data.Weight);
+    globalMaxWeight = max(data.Weight);
+    fprintf('Weight range: %.2e to %.2e\n', globalMinWeight, globalMaxWeight);
+
     
     updatePlot();
     
@@ -62,16 +79,38 @@ function visualizeParticles()
             circleX = SENSOR_POSITIONS(i, 1) + SENSOR_MAX_RANGE(i) * cos(theta);
             circleY = SENSOR_POSITIONS(i, 2) + SENSOR_MAX_RANGE(i) * sin(theta);
             
-            fill(circleX, circleY, [0.8, 0.9, 1], 'FaceAlpha', 0.25, 'EdgeColor', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', ':');
+            fill(circleX, circleY, [0.8, 0.9, 1], 'FaceAlpha', 0.15, 'EdgeColor', [0.5, 0.5, 0.5], 'LineWidth', 1, 'LineStyle', ':');
         end
         
-        % TODO: All particles have the same weight right now...
+        % Plot bearing likelihood cones if sensor data is available
+        if ~isempty(sensorData)
+            currentSensorData = sensorData(sensorData.TimeStep == currentTime, :);
+            
+            for i = 1:height(currentSensorData)
+                sensorX = currentSensorData.SensorX(i);
+                sensorY = currentSensorData.SensorY(i);
+                bearing = currentSensorData.ObservedBearing(i);
+                stdDev = currentSensorData.BearingStdDev(i);
+                
+                plotBearingCone(sensorX, sensorY, bearing, stdDev, SENSOR_MAX_RANGE(i));
+            end
+        end
+        
         if height(currentData) > 1
             scatterHandle = scatter(currentData.X, currentData.Y, 60, currentData.Weight, 'filled', ...
                    'MarkerFaceAlpha', 0.8, 'MarkerEdgeColor', 'none');
+            clim([globalMinWeight, globalMaxWeight]);
+
+            % logWeights = log10(max(currentData.Weight, 1e-15));
+            % scatterHandle = scatter(currentData.X, currentData.Y, 60, logWeights, 'filled', ...
+            %        'MarkerFaceAlpha', 0.8, 'MarkerEdgeColor', 'none');
+            % clim([log10(max(globalMinWeight, 1e-15)), log10(globalMaxWeight)]);
+
             colormap('hot');
             cb = colorbar;
             cb.Label.String = 'Particle Weight';
+            % cb.Label.String = 'Particle Weight (Log_{10})';
+
         end
         
         % Plot true position
@@ -93,16 +132,15 @@ function visualizeParticles()
                  'BackgroundColor', 'white', 'EdgeColor', 'black');
         end
         
-        xlabel('X Position', 'FontSize', 12);
-        ylabel('Y Position', 'FontSize', 12);
+        xlabel('X Position (m)', 'FontSize', 12);
+        ylabel('Y Position (m)', 'FontSize', 12);
         
-        title(sprintf('Particle Filter - Time Step %d/%d ', currentTimeIndex, numTimeSteps), ...
+        title(sprintf('Particle Filter - Time Step %d/%d', currentTimeIndex, numTimeSteps), ...
               'FontSize', 14, 'FontWeight', 'bold');
         
         legendHandles = [];
         legendLabels = {};
         
-        % Always have particles
         legendHandles(end+1) = scatterHandle;
         legendLabels{end+1} = 'Particles';
         
@@ -113,6 +151,14 @@ function visualizeParticles()
         % Estimated position
         legendHandles(end+1) = estPos;
         legendLabels{end+1} = 'Estimate';
+        
+        % Add bearing cone legend if we have sensor data
+        if ~isempty(sensorData) && ~isempty(currentSensorData)
+            % Create dummy line for legend
+            bearingLine = plot(NaN, NaN, 'r-', 'LineWidth', 2);
+            legendHandles(end+1) = bearingLine;
+            legendLabels{end+1} = 'Bearing Cones';
+        end
         
         legend(legendHandles, legendLabels, 'Location', 'northeast', 'FontSize', 8);
 
@@ -134,6 +180,30 @@ function visualizeParticles()
         ylim(ylimits);
         
         drawnow;
+    end
+    
+    function plotBearingCone(sensorX, sensorY, bearing, stdDev, maxRange)
+        sigma2 = 2 * stdDev; % 2-sigma bounds
+        
+        bearing1 = bearing - sigma2;
+        bearing2 = bearing + sigma2;
+        
+        range = maxRange * 0.9;
+        
+        x1_end = sensorX + range * cos(bearing1);
+        y1_end = sensorY + range * sin(bearing1);
+        
+        x2_end = sensorX + range * cos(bearing2);
+        y2_end = sensorY + range * sin(bearing2);
+        
+        % Plot the cone edges
+        plot([sensorX, x1_end], [sensorY, y1_end], 'r-', 'LineWidth', 2, 'Color', [1, 0, 0, 0.7]);
+        plot([sensorX, x2_end], [sensorY, y2_end], 'r-', 'LineWidth', 2, 'Color', [1, 0, 0, 0.7]);
+        
+        % center line
+        x_center = sensorX + range * cos(bearing);
+        y_center = sensorY + range * sin(bearing);
+        plot([sensorX, x_center], [sensorY, y_center], 'r--', 'LineWidth', 1, 'Color', [1, 0, 0, 0.5]);
     end
     
     function keyPressCallback(~, event)
